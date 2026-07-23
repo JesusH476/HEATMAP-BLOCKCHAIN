@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>Mapa de calor cripto · Top 40</title>
+
+  <style>
+    :root {
+      --bg: #07101f;
+      --panel: #111b32;
+      --panel-2: #19243f;
+      --text: #f5f7ff;
+      --muted: #9aa8c4;
+      --positive-1: #0c6c3b;
+      --positive-2: #119454;
+      --negative-1: #8d2028;
+      --negative-2: #c63b3f;
+      --neutral-1: #1c2742;
+      --neutral-2: #27324d;
+      --border: rgba(255, 255, 255, 0.08);
+      --shadow: 0 10px 25px rgba(0, 0, 0, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+      background:
+        radial-gradient(circle at 15% 0%, rgba(65, 87, 154, 0.22), transparent 35%),
+        linear-gradient(180deg, #0a1325 0%, var(--bg) 100%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+    }
+
+    body {
+      padding: 18px;
+    }
+
+    .page {
+      width: min(1900px, 100%);
+      margin: 0 auto;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.45rem, 2.2vw, 2.3rem);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    .status-box {
+      min-width: 215px;
+      text-align: right;
+      color: var(--muted);
+      font-size: 0.75rem;
+      line-height: 1.55;
+    }
+
+    .status-online {
+      color: #67e7a0;
+      font-weight: 700;
+    }
+
+    .status-error {
+      color: #ff8c91;
+      font-weight: 700;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    button,
+    select {
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.055);
+      color: var(--text);
+      padding: 9px 11px;
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    select option {
+      color: #111;
+    }
+
+    .search {
+      flex: 1 1 220px;
+      min-width: 180px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.055);
+      color: var(--text);
+      padding: 9px 11px;
+      outline: none;
+    }
+
+    .search::placeholder {
+      color: #8190ad;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(175px, 1fr));
+      gap: 8px;
+    }
+
+    .card {
+      position: relative;
+      min-height: 128px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: 11px 12px;
+      box-shadow: var(--shadow);
+      isolation: isolate;
+      transition: transform 140ms ease, filter 140ms ease;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.07);
+    }
+
+    .card.positive {
+      background: linear-gradient(135deg, var(--positive-2), var(--positive-1));
+    }
+
+    .card.negative {
+      background: linear-gradient(135deg, var(--negative-2), var(--negative-1));
+    }
+
+    .card.neutral {
+      background: linear-gradient(135deg, var(--neutral-2), var(--neutral-1));
+    }
+
+    .card::after {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      right: -22px;
+      bottom: -35px;
+      width: 92px;
+      height: 92px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.13);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .symbol {
+      font-size: 1rem;
+      font-weight: 900;
+      letter-spacing: 0.01em;
+    }
+
+    .rank {
+      color: rgba(255, 255, 255, 0.82);
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    .name {
+      margin-top: 2px;
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 0.67rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .price {
+      margin-top: 16px;
+      font-size: 1.05rem;
+      font-weight: 900;
+    }
+
+    .change {
+      margin-top: 2px;
+      font-size: 0.8rem;
+      font-weight: 850;
+    }
+
+    .details {
+      margin-top: 11px;
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 0.63rem;
+      line-height: 1.45;
+    }
+
+    .legend {
+      margin-top: 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.035);
+      padding: 8px 10px;
+      color: var(--muted);
+      font-size: 0.7rem;
+    }
+
+    .legend-bar {
+      height: 7px;
+      margin-top: 7px;
+      border-radius: 999px;
+      background: linear-gradient(
+        90deg,
+        #ad2630 0%,
+        #d34248 35%,
+        #27324d 50%,
+        #159855 67%,
+        #08733d 100%
+      );
+    }
+
+    .empty {
+      grid-column: 1 / -1;
+      padding: 40px;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+    }
+
+    @media (max-width: 1500px) {
+      .grid {
+        grid-template-columns: repeat(6, minmax(165px, 1fr));
+      }
+    }
+
+    @media (max-width: 1120px) {
+      .grid {
+        grid-template-columns: repeat(4, minmax(160px, 1fr));
+      }
+    }
+
+    /* Diseño compacto para móviles: 3 tarjetas por fila */
+    @media (max-width: 760px) {
+      body {
+        padding: 7px;
+      }
+
+      .page {
+        width: 100%;
+      }
+
+      .topbar {
+        display: block;
+        margin-bottom: 8px;
+      }
+
+      h1 {
+        font-size: 1.05rem;
+      }
+
+      .subtitle {
+        margin-top: 3px;
+        font-size: 0.65rem;
+      }
+
+      .status-box {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1px 8px;
+        margin-top: 7px;
+        min-width: 0;
+        text-align: left;
+        font-size: 0.58rem;
+        line-height: 1.35;
+      }
+
+      .controls {
+        gap: 5px;
+        margin-bottom: 7px;
+      }
+
+      .search {
+        flex: 1 1 100%;
+        min-width: 0;
+        padding: 7px 8px;
+        font-size: 0.72rem;
+      }
+
+      button,
+      select {
+        flex: 1 1 auto;
+        min-width: 0;
+        padding: 7px 8px;
+        font-size: 0.68rem;
+      }
+
+      .grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 3px;
+      }
+
+      .card {
+        min-height: 82px;
+        padding: 4px;
+        border-radius: 8px;
+        box-shadow: none;
+      }
+
+      .card:hover {
+        transform: none;
+      }
+
+      .card::after {
+        right: -27px;
+        bottom: -38px;
+        width: 72px;
+        height: 72px;
+      }
+
+      .card-header {
+        gap: 3px;
+      }
+
+      .symbol {
+        font-size: 0.58rem;
+        line-height: 1.05;
+      }
+
+      .rank {
+        font-size: 0.40rem;
+      }
+
+      .name {
+        margin-top: 2px;
+        font-size: 0.38rem;
+        line-height: 1.1;
+      }
+
+      .price {
+        margin-top: 7px;
+        font-size: 0.52rem;
+        line-height: 1.05;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .change {
+        margin-top: 2px;
+        font-size: 0.43rem;
+        line-height: 1.1;
+      }
+
+      .details {
+        margin-top: 5px;
+        font-size: 0.34rem;
+        line-height: 1.3;
+      }
+
+      .legend {
+        margin-top: 7px;
+        padding: 6px 7px;
+        font-size: 0.55rem;
+      }
+
+      .legend-bar {
+        height: 5px;
+        margin-top: 5px;
+      }
+    }
+
+    /* En pantallas muy estrechas se mantienen 3 columnas,
+       ocultando solo los datos secundarios. */
+    @media (max-width: 360px) {
+      .card {
+        min-height: 88px;
+        padding: 6px;
+      }
+
+      .name,
+      .details {
+        display: none;
+      }
+
+      .price {
+        margin-top: 9px;
+        font-size: 0.68rem;
+      }
+
+      .change {
+        font-size: 0.55rem;
+      }
+    }
+
+    /* En horizontal caben cinco tarjetas por fila */
+    @media (max-width: 900px) and (orientation: landscape) {
+      .grid {
+        grid-template-columns: repeat(8, minmax(0, 1fr));
+      }
+
+      .card {
+        min-height: 96px;
+      }
+    }
+
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <header class="topbar">
+      <div>
+        <h1>Mapa de calor cripto · Top 40</h1>
+        <p class="subtitle">
+          Ordenado por ranking. El color representa la variación de precio en 24 horas.
+        </p>
+      </div>
+
+      <div class="status-box">
+        <div>Estado: <span id="status" class="status-online">cargando…</span></div>
+        <div>Fuente: CoinLore</div>
+        <div>Última actualización: <span id="lastUpdate">—</span></div>
+        <div>Próxima lectura: <span id="countdown">20</span> s</div>
+      </div>
+    </header>
+
+    <section class="controls" aria-label="Controles">
+      <input
+        id="search"
+        class="search"
+        type="search"
+        placeholder="Buscar por nombre o símbolo…"
+        autocomplete="off"
+      />
+
+      <select id="limit" aria-label="Cantidad de monedas">
+        <option value="42" selected>Top 42</option>
+      </select>
+
+      <button id="refreshButton" type="button">Actualizar ahora</button>
+    </section>
+
+    <section id="grid" class="grid" aria-live="polite"></section>
+
+    <footer class="legend">
+      Rojo = bajada en 24 h · Gris = cambio mínimo · Verde = subida en 24 h
+      <div class="legend-bar"></div>
+    </footer>
+  </main>
+
+  <script>
+    "use strict";
+
+    const API_URL = "https://api.coinlore.net/api/tickers/?start=0&limit=42";
+    const REFRESH_SECONDS = 600;
+    const NEUTRAL_THRESHOLD = 0.05;
+
+    const grid = document.getElementById("grid");
+    const statusText = document.getElementById("status");
+    const lastUpdate = document.getElementById("lastUpdate");
+    const countdownText = document.getElementById("countdown");
+    const refreshButton = document.getElementById("refreshButton");
+    const searchInput = document.getElementById("search");
+    const limitSelect = document.getElementById("limit");
+
+    let allCoins = [];
+    let countdown = REFRESH_SECONDS;
+    let isLoading = false;
+
+    const formatCurrency = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8
+    });
+
+    const formatCompactCurrency = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      notation: "compact",
+      maximumFractionDigits: 2
+    });
+
+    const formatCompactNumber = new Intl.NumberFormat("en-US", {
+      notation: "compact",
+      maximumFractionDigits: 2
+    });
+
+    function safeNumber(value) {
+      const number = Number(value);
+      return Number.isFinite(number) ? number : 0;
+    }
+
+    function formatPrice(value) {
+      const number = safeNumber(value);
+
+      if (number >= 1) {
+        return new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        }).format(number);
+      }
+
+      return formatCurrency.format(number);
+    }
+
+    function getCardClass(change24h) {
+      if (change24h > NEUTRAL_THRESHOLD) return "positive";
+      if (change24h < -NEUTRAL_THRESHOLD) return "negative";
+      return "neutral";
+    }
+
+    function getChangeText(change24h) {
+      const sign = change24h > 0 ? "+" : "";
+      return `${sign}${change24h.toFixed(2)}% 24h`;
+    }
+
+    function createCard(coin) {
+      const change24h = safeNumber(coin.percent_change_24h);
+      const marketCap = safeNumber(coin.market_cap_usd);
+      const volume24h = safeNumber(coin.volume24);
+      const price = safeNumber(coin.price_usd);
+      const rank = safeNumber(coin.rank);
+
+      const card = document.createElement("article");
+      card.className = `card ${getCardClass(change24h)}`;
+      card.title = `${coin.name} (${coin.symbol})`;
+
+      card.innerHTML = `
+        <div class="card-header">
+          <div>
+            <div class="symbol">${escapeHtml(coin.symbol ?? "—")}</div>
+            <div class="name">${escapeHtml(coin.name ?? "Sin nombre")}</div>
+          </div>
+          <div class="rank">#${rank || "—"}</div>
+        </div>
+
+        <div class="price">${formatPrice(price)}</div>
+        <div class="change">${getChangeText(change24h)}</div>
+
+        <div class="details">
+          <div>Market cap: ${formatCompactCurrency.format(marketCap)}</div>
+          <div>Volumen 24 h: ${formatCompactNumber.format(volume24h)}</div>
+        </div>
+      `;
+
+      return card;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function renderCoins() {
+      const query = searchInput.value.trim().toLowerCase();
+      const limit = Number(limitSelect.value);
+
+      const filtered = allCoins
+        .filter((coin) => {
+          const name = String(coin.name ?? "").toLowerCase();
+          const symbol = String(coin.symbol ?? "").toLowerCase();
+          return !query || name.includes(query) || symbol.includes(query);
+        })
+        .slice(0, limit);
+
+      grid.replaceChildren();
+
+      if (filtered.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "No se encontraron monedas.";
+        grid.appendChild(empty);
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+      filtered.forEach((coin) => fragment.appendChild(createCard(coin)));
+      grid.appendChild(fragment);
+    }
+
+    async function loadCoins() {
+      if (isLoading) return;
+
+      isLoading = true;
+      refreshButton.disabled = true;
+      statusText.textContent = "actualizando…";
+      statusText.className = "status-online";
+
+      try {
+        const response = await fetch(API_URL, {
+          method: "GET",
+          headers: {
+            Accept: "application/json"
+          },
+          cache: "no-store"
+        });
+
+        if (!response.ok) {
+          throw new Error(`La API respondió con estado ${response.status}`);
+        }
+
+        const payload = await response.json();
+        const data = payload?.data;
+
+        if (!Array.isArray(data)) {
+          throw new Error("La respuesta de CoinLore no tiene el formato esperado.");
+        }
+
+        allCoins = data
+          .filter((coin) => coin && coin.price_usd !== undefined)
+          .sort((a, b) => safeNumber(a.rank) - safeNumber(b.rank))
+          .slice(0, 42);
+
+        localStorage.setItem("cryptoDataCoinLore", JSON.stringify(allCoins));
+        localStorage.setItem("cryptoDataTimeCoinLore", Date.now().toString());
+
+        renderCoins();
+
+        const now = new Date();
+        lastUpdate.textContent = now.toLocaleTimeString("es-ES");
+        statusText.textContent = "online";
+        statusText.className = "status-online";
+        countdown = REFRESH_SECONDS;
+      } catch (error) {
+        const savedData = localStorage.getItem("cryptoDataCoinLore");
+
+        if (savedData) {
+          allCoins = JSON.parse(savedData);
+          renderCoins();
+
+          statusText.textContent = "datos guardados";
+          statusText.className = "status-error";
+
+          const savedTime = Number(localStorage.getItem("cryptoDataTimeCoinLore"));
+          if (savedTime) {
+            lastUpdate.textContent = new Date(savedTime).toLocaleTimeString("es-ES");
+          }
+
+          console.warn("CoinLore no respondió. Se muestran datos guardados.", error);
+          return;
+        }
+        console.error(error);
+        statusText.textContent = "error";
+        statusText.className = "status-error";
+
+        if (allCoins.length === 0) {
+          grid.innerHTML = `
+            <div class="empty">
+              No fue posible cargar los datos.<br />
+              Comprueba tu conexión a Internet y vuelve a intentarlo.
+            </div>
+          `;
+        }
+      } finally {
+        isLoading = false;
+        refreshButton.disabled = false;
+      }
+    }
+
+    refreshButton.addEventListener("click", loadCoins);
+    searchInput.addEventListener("input", renderCoins);
+    limitSelect.addEventListener("change", renderCoins);
+
+    setInterval(() => {
+      countdown -= 1;
+
+      if (countdown <= 0) {
+        countdown = REFRESH_SECONDS;
+        loadCoins();
+      }
+
+      countdownText.textContent = countdown;
+    }, 1000);
+
+    loadCoins();
+  </script>
+</body>
+</html>
