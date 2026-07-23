@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mapa de calor cripto Top 40 en tiempo real</title>
+  <style>
+    :root { --bg:#070b16; --panel:#11182e; --text:#f6f7fb; --muted:#9ba6c7; --border:rgba(255,255,255,.11); }
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(circle at top,#1b2852 0%,#0b1020 42%,#050814 100%);color:var(--text);min-height:100vh;padding:28px}.header{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;margin-bottom:20px}h1{margin:0;font-size:clamp(24px,4vw,42px);letter-spacing:-.04em}.subtitle{color:var(--muted);margin-top:8px;font-size:15px}.status{text-align:right;color:var(--muted);font-size:14px;min-width:250px}.status strong{color:var(--text)}.heatmap{display:grid;grid-template-columns:repeat(8,minmax(135px,1fr));grid-auto-rows:minmax(145px,auto);gap:14px}.coin{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:22px;padding:15px;min-height:145px;box-shadow:0 18px 45px rgba(0,0,0,.24);transition:transform .2s ease,filter .2s ease}.coin:hover{transform:translateY(-4px);filter:brightness(1.08)}.coin::after{content:"";position:absolute;inset:auto -30px -55px auto;width:135px;height:135px;border-radius:50%;background:rgba(255,255,255,.13)}.topline{display:flex;justify-content:space-between;align-items:center;gap:10px}.symbol{font-weight:900;font-size:24px;letter-spacing:-.03em}.rank{color:rgba(255,255,255,.78);font-size:13px}.name{color:rgba(255,255,255,.86);margin-top:3px;font-size:14px}.price{margin-top:22px;font-size:21px;font-weight:800}.change{margin-top:6px;font-weight:800;font-size:18px}.meta{margin-top:14px;display:grid;gap:4px;color:rgba(255,255,255,.78);font-size:13px}.legend,.note{margin-top:18px;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:16px;padding:12px 14px;color:var(--muted);font-size:13px}.bar{height:10px;border-radius:999px;margin-top:8px;background:linear-gradient(90deg,#7f1d1d,#ef4444,#31384f,#22c55e,#064e3b)}.error{grid-column:1/-1;padding:18px;border-radius:16px;border:1px solid rgba(248,113,113,.5);background:rgba(127,29,29,.25);color:#fecaca;line-height:1.45}.loading{grid-column:1/-1;padding:18px;border-radius:16px;background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--muted)}@media(max-width:1200px){.heatmap{grid-template-columns:repeat(4,1fr)}}@media(max-width:980px){.heatmap{grid-template-columns:repeat(2,1fr)}.header{align-items:flex-start;flex-direction:column}.status{text-align:left}}@media(max-width:560px){body{padding:18px}.heatmap{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>Mapa de calor cripto · Top 40</h1>
+      <div class="subtitle">Datos reales ordenados por capitalización/ranking. Color según variación 24h. Actualización automática cada 20 segundos.</div>
+    </div>
+    <div class="status">
+      <div>Estado: <strong id="state">cargando…</strong></div>
+      <div>Fuente: <strong id="source">—</strong></div>
+      <div>Última actualización: <strong id="updated">—</strong></div>
+      <div>Próxima lectura en: <strong id="countdown">20</strong>s</div>
+    </div>
+  </div>
+  <main id="heatmap" class="heatmap"><div class="loading">Cargando datos reales del mercado…</div></main>
+  <div class="legend">Rojo = caída en 24h · Gris = casi sin cambio · Verde = subida en 24h<div class="bar"></div></div>
+  <div class="note">Esta versión prueba primero CoinGecko y, si falla, usa CoinPaprika como respaldo. Si abres el archivo desde el móvil y una red bloquea APIs externas, prueba abrirlo en Chrome/Edge/Safari actualizado.</div>
+<script>
+const heatmap=document.getElementById('heatmap'), state=document.getElementById('state'), updated=document.getElementById('updated'), countdown=document.getElementById('countdown'), sourceEl=document.getElementById('source');
+let seconds=20;
+const usd=new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2});
+const compactUsd=new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',notation:'compact',maximumFractionDigits:2});
+const endpoints=[
+ {name:'CoinGecko',url:'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=40&page=1&sparkline=false&price_change_percentage=24h',map:d=>d.map((c,i)=>({rank:c.market_cap_rank||i+1,symbol:c.symbol,name:c.name,price:c.current_price,change:c.price_change_percentage_24h,marketCap:c.market_cap,volume:c.total_volume}))},
+ {name:'CoinPaprika',url:'https://api.coinpaprika.com/v1/tickers?quotes=USD',map:d=>d.filter(c=>c.rank&&c.quotes&&c.quotes.USD).sort((a,b)=>a.rank-b.rank).slice(0,40).map(c=>({rank:c.rank,symbol:c.symbol,name:c.name,price:c.quotes.USD.price,change:c.quotes.USD.percent_change_24h,marketCap:c.quotes.USD.market_cap,volume:c.quotes.USD.volume_24h}))}
+];
+function colorForChange(change){const c=Math.max(-10,Math.min(10,Number(change||0))); if(Math.abs(c)<.25)return 'linear-gradient(135deg,rgba(49,56,79,.95),rgba(24,31,55,.92))'; if(c>0){const i=Math.min(1,c/8);return `linear-gradient(135deg,rgba(${34-i*20},${197-i*60},${94-i*30},.95),rgba(6,78,59,.92))`} const i=Math.min(1,Math.abs(c)/8);return `linear-gradient(135deg,rgba(${239-i*70},${68-i*35},${68-i*35},.95),rgba(127,29,29,.92))`}
+function safe(n){return Number.isFinite(Number(n))?Number(n):0}
+function render(data){heatmap.innerHTML=data.slice(0,40).map(coin=>{const change=safe(coin.change), sign=change>=0?'+':'';return `<article class="coin" style="background:${colorForChange(change)}"><div class="topline"><div><div class="symbol">${String(coin.symbol).toUpperCase()}</div><div class="name">${coin.name}</div></div><div class="rank">#${coin.rank}</div></div><div class="price">${usd.format(safe(coin.price))}</div><div class="change">${sign}${change.toFixed(2)}% 24h</div><div class="meta"><span>Market cap: ${compactUsd.format(safe(coin.marketCap))}</span><span>Volumen 24h: ${compactUsd.format(safe(coin.volume))}</span></div></article>`}).join('')}
+async function fetchWithTimeout(url,ms=9000){const controller=new AbortController();const t=setTimeout(()=>controller.abort(),ms);try{return await fetch(url,{cache:'no-store',mode:'cors',signal:controller.signal})}finally{clearTimeout(t)}}
+async function loadData(){state.textContent='actualizando…';let errors=[];for(const ep of endpoints){try{const response=await fetchWithTimeout(ep.url);if(!response.ok)throw new Error(`${ep.name} HTTP ${response.status}`);const raw=await response.json();const data=ep.map(raw);if(!Array.isArray(data)||data.length<10)throw new Error(`${ep.name}: respuesta incompleta`);render(data);sourceEl.textContent=ep.name;updated.textContent=new Date().toLocaleTimeString('es-ES');state.textContent='online';seconds=20;return;}catch(e){errors.push(e.message||String(e));}}
+ state.textContent='error';sourceEl.textContent='—';heatmap.innerHTML=`<div class="error"><strong>No se pudieron cargar los datos.</strong><br>He probado dos fuentes públicas y ambas fallaron desde este navegador/red.<br><br>Detalle técnico: ${errors.join(' | ')}<br><br>Solución rápida: abre este HTML en un navegador actualizado con conexión a internet. Si tu red bloquea APIs externas, necesitarás usar otra red o levantarlo con un servidor local simple.</div>`;}
+loadData();setInterval(loadData,20000);setInterval(()=>{seconds=seconds<=1?20:seconds-1;countdown.textContent=seconds},1000);
+</script>
+</body>
+</html>
